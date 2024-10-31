@@ -1,0 +1,42 @@
+# Unreal Engine 5 Specific
+/Saved/
+/Intermediate/
+/DerivedDataCache/
+/Binaries/
+/Build/
+
+
+# JetBrains Rider files
+.idea/
+/.idea/*
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.ipch
+*.pch
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+*.db
+
+# macOS related
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Backup files
+*.bak
+*.tmp
+*.old
+*.log
+
+# Other IDEs
+.vscode/
