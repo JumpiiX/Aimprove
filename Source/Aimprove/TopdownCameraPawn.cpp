@@ -1,4 +1,6 @@
 #include "TopdownCameraPawn.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Camera/CameraComponent.h"
 
 // Sets default values
 ATopdownCameraPawn::ATopdownCameraPawn()
@@ -33,8 +35,9 @@ void ATopdownCameraPawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-// No input binding necessary for Top-Down Camera
+// Prevent input for this pawn
 void ATopdownCameraPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	// No input bindings
 }
