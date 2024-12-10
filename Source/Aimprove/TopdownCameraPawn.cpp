@@ -5,6 +5,10 @@ ATopdownCameraPawn::ATopdownCameraPawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// Root Component
+	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	RootComponent = SceneComponent;
+
 	// SpringArm Component
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComponent->SetupAttachment(RootComponent);
@@ -29,27 +33,8 @@ void ATopdownCameraPawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-// Bind input functions
+// No input binding necessary for Top-Down Camera
 void ATopdownCameraPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-	PlayerInputComponent->BindAxis("MoveUp", this, &ATopdownCameraPawn::MoveCameraUp);
-	PlayerInputComponent->BindAxis("MoveRight", this, &ATopdownCameraPawn::MoveCameraRight);
-}
-
-void ATopdownCameraPawn::MoveCameraUp(float Value)
-{
-	if (Controller && Value != 0.0f)
-	{
-		AddMovementInput(FVector::ForwardVector, Value);
-	}
-}
-
-void ATopdownCameraPawn::MoveCameraRight(float Value)
-{
-	if (Controller && Value != 0.0f)
-	{
-		AddMovementInput(FVector::RightVector, Value);
-	}
 }
