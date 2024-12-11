@@ -1,15 +1,20 @@
+// CustomPlayerController.cpp
 #include "CustomPlayerController.h"
 #include "TopdownCameraPawn.h"
 #include "GameFramework/Character.h"
 
 ACustomPlayerController::ACustomPlayerController()
 {
-    bIsInTopdownMode = true;
+    bIsInTopdownMode = true; // Start in Top-Down mode
+    bShowMouseCursor = true; // Always show cursor
+    CurrentMouseCursor = EMouseCursor::Crosshairs; // Use crosshair cursor
 }
 
 void ACustomPlayerController::BeginPlay()
 {
     Super::BeginPlay();
+
+    UE_LOG(LogTemp, Warning, TEXT("CustomPlayerController: BeginPlay is called!"));
 
     // Find the existing TopdownCameraPawn in the level
     ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(UGameplayStatics::GetActorOfClass(GetWorld(), ATopdownCameraPawn::StaticClass()));
@@ -19,7 +24,10 @@ void ACustomPlayerController::BeginPlay()
         // Possess the TopdownCameraPawn
         Possess(TopdownPawn);
         bIsInTopdownMode = true;
-        UE_LOG(LogTemp, Warning, TEXT("Successfully possessed TopdownCameraPawn"));
+        
+        // Ensure mouse cursor is visible
+        bShowMouseCursor = true;
+        CurrentMouseCursor = EMouseCursor::Crosshairs;
     }
     else
     {
@@ -38,7 +46,6 @@ void ACustomPlayerController::SetupInputComponent()
 void ACustomPlayerController::SwitchCameraMode()
 {
     // Get the Blueprint class reference
-    // Format is "/Game/[FolderPath]/[BlueprintName].[BlueprintName]_C"
     UClass* CharacterBlueprintClass = LoadClass<ACharacter>(nullptr, TEXT("/Game/Blueprints/CBP_SandboxCharacter.CBP_SandboxCharacter_C"));
     
     if (CharacterBlueprintClass)
@@ -58,6 +65,7 @@ void ACustomPlayerController::SwitchCameraMode()
             {
                 Possess(SandboxCharacter);
                 bIsInTopdownMode = false;
+                bShowMouseCursor = false; // Hide cursor in third person mode
                 UE_LOG(LogTemp, Warning, TEXT("Successfully switched to Sandbox Character"));
             }
         }
