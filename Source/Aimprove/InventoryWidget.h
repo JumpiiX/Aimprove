@@ -16,7 +16,7 @@ class AIMPROVE_API UInventoryWidget : public UUserWidget
 
 protected:
 	virtual void NativeConstruct() override;
-
+	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 	UPROPERTY(meta = (BindWidget))
 	class UImage* DraggableSquare;
 	

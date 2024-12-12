@@ -53,6 +53,7 @@ bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, cons
     FHitResult HitResult;
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(this);
+    QueryParams.bTraceComplex = true;  // Für genauere Kollisionserkennung
 
     bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, TraceEnd, ECC_Visibility, QueryParams);
     
@@ -60,22 +61,19 @@ bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, cons
     {
         UE_LOG(LogTemp, Warning, TEXT("Line trace hit at: %s"), *HitResult.Location.ToString());
         
-        // Versuchen wir beide LevelBlock Varianten
         UClass* BlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
         if (!BlockClass)
         {
-            UE_LOG(LogTemp, Warning, TEXT("Trying normal LevelBlock instead..."));
-            BlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock.LevelBlock_C"));
-            
-            if (!BlockClass)
-            {
-                UE_LOG(LogTemp, Error, TEXT("Failed to load both block classes!"));
-                return false;
-            }
+            UE_LOG(LogTemp, Error, TEXT("Failed to load block class!"));
+            return false;
         }
 
-        FVector SpawnLocation = HitResult.Location;
-        SpawnLocation.Z += 50.0f;
+        // Snappen der Position zum Grid
+        FVector SpawnLocation = FVector(
+            FMath::RoundToFloat(HitResult.ImpactPoint.X / GridSize) * GridSize,
+            FMath::RoundToFloat(HitResult.ImpactPoint.Y / GridSize) * GridSize,
+            HitResult.ImpactPoint.Z
+        );
 
         UE_LOG(LogTemp, Warning, TEXT("Attempting to spawn at: %s"), *SpawnLocation.ToString());
         
@@ -88,6 +86,7 @@ bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, cons
         if (SpawnedBlock)
         {
             UE_LOG(LogTemp, Warning, TEXT("Successfully spawned block: %s"), *SpawnedBlock->GetName());
+            DestroyPreviewBlock();  // Preview zerstören nach erfolgreicher Platzierung
             return true;
         }
         else
@@ -102,8 +101,65 @@ bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, cons
 
     return false;
 }
-
 void ATopdownCameraPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+}
+
+void ATopdownCameraPawn::UpdatePreviewLocation(const FVector& Location)
+{
+    // Erstelle Preview-Block falls noch nicht vorhanden
+    if (!PreviewBlock)
+    {
+        UClass* BlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
+        if (BlockClass)
+        {
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            PreviewBlock = GetWorld()->SpawnActor<AActor>(BlockClass, Location, FRotator::ZeroRotator, SpawnParams);
+            
+            if (PreviewBlock)
+            {
+                TArray<UStaticMeshComponent*> MeshComponents;
+                PreviewBlock->GetComponents<UStaticMeshComponent>(MeshComponents);
+                
+                for (UStaticMeshComponent* MeshComp : MeshComponents)
+                {
+                    MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                    
+                    // Setze alle Materialien auf halbtransparent
+                    for (int32 i = 0; i < MeshComp->GetNumMaterials(); i++)
+                    {
+                        UMaterialInterface* Material = MeshComp->GetMaterial(i);
+                        if (Material)
+                        {
+                            UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(Material, this);
+                            DynMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.5f);
+                            MeshComp->SetMaterial(i, DynMaterial);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Update Position
+    if (PreviewBlock)
+    {
+        FVector SnappedLocation = FVector(
+            FMath::RoundToFloat(Location.X / GridSize) * GridSize,
+            FMath::RoundToFloat(Location.Y / GridSize) * GridSize,
+            Location.Z
+        );
+        PreviewBlock->SetActorLocation(SnappedLocation);
+    }
+}
+
+void ATopdownCameraPawn::DestroyPreviewBlock()
+{
+    if (PreviewBlock)
+    {
+        PreviewBlock->Destroy();
+        PreviewBlock = nullptr;
+    }
 }

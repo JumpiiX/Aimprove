@@ -57,13 +57,29 @@ void UInventoryWidget::NativeOnDragDetected(const FGeometry& InGeometry, const F
     if (DragDropOp)
     {
         DragDropOp->BlockClass = BlockToSpawn;
-        DragDropOp->DefaultDragVisual = this;
-        DragDropOp->Pivot = EDragPivot::CenterCenter;
-        
+        DragDropOp->Pivot = EDragPivot::MouseDown;
         OutOperation = DragDropOp;
+        
+        // Start Preview
+        if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+        {
+            FVector2D MousePosition = InMouseEvent.GetScreenSpacePosition();
+            FVector WorldPosition, WorldDirection;
+            
+            if (APlayerController* PC = GetOwningPlayer())
+            {
+                if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+                {
+                    FHitResult HitResult;
+                    if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
+                    {
+                        TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint);
+                    }
+                }
+            }
+        }
     }
 }
-
 bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
     UE_LOG(LogTemp, Warning, TEXT("NativeOnDrop called"));
@@ -95,6 +111,29 @@ bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
     else
     {
         UE_LOG(LogTemp, Error, TEXT("Could not find TopdownPawn"));
+    }
+    return false;
+}
+
+bool UInventoryWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+    {
+        FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
+        FVector WorldPosition, WorldDirection;
+        
+        if (APlayerController* PC = GetOwningPlayer())
+        {
+            if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+            {
+                FHitResult HitResult;
+                if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
+                {
+                    TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint);
+                    return true;
+                }
+            }
+        }
     }
     return false;
 }
