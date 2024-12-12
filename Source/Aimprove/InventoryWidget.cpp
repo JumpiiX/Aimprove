@@ -1,18 +1,37 @@
 // InventoryWidget.cpp
 #include "InventoryWidget.h"
+#include "TopdownCameraPawn.h"
 #include "Components/Image.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "InventoryDragDropOperation.h"
+#include "Kismet/GameplayStatics.h"
 
+// InventoryWidget.cpp - Aktualisiere NativeConstruct
 void UInventoryWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+    // Load the LevelBlock class
+    BlockToSpawn = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
+    
+    if (BlockToSpawn)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("LevelBlock class loaded successfully"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load LevelBlock class"));
+    }
 
     if (DraggableSquare)
     {
         DraggableSquare->SetVisibility(ESlateVisibility::Visible);
     }
 
+    // Add these lines
+    SetVisibility(ESlateVisibility::Visible);
+    SetIsFocusable(true);
+    
     if (APlayerController* PC = GetOwningPlayer())
     {
         PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
@@ -24,10 +43,8 @@ FReply UInventoryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
 {
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
-        FEventReply Reply = UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton);
-        return Reply.NativeReply;
+        return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
     }
-
     return FReply::Unhandled();
 }
 
@@ -40,15 +57,44 @@ void UInventoryWidget::NativeOnDragDetected(const FGeometry& InGeometry, const F
     if (DragDropOp)
     {
         DragDropOp->BlockClass = BlockToSpawn;
-        DragDropOp->DefaultDragVisual = this;  // Use the whole widget as drag visual
-        DragDropOp->Pivot = EDragPivot::CenterCenter;  // Center the drag visual
+        DragDropOp->DefaultDragVisual = this;
+        DragDropOp->Pivot = EDragPivot::CenterCenter;
         
         OutOperation = DragDropOp;
+    }
+}
 
-        if (APlayerController* PC = GetOwningPlayer())
+bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+    UE_LOG(LogTemp, Warning, TEXT("NativeOnDrop called"));
+
+    if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Found TopdownPawn"));
+        
+        APlayerController* PC = GetOwningPlayer();
+        if (!PC)
         {
-            PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
-            PC->bShowMouseCursor = true;
+            UE_LOG(LogTemp, Error, TEXT("No PlayerController found"));
+            return false;
+        }
+
+        FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
+        FVector WorldPosition, WorldDirection;
+        
+        if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Deproject successful. WorldPos: %s"), *WorldPosition.ToString());
+            return TopdownPawn->HandleBlockPlacement(WorldPosition, WorldDirection);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("Deproject failed"));
         }
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Could not find TopdownPawn"));
+    }
+    return false;
 }

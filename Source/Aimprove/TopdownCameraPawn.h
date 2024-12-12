@@ -7,6 +7,10 @@
 #include "InventoryWidget.h"
 #include "TopdownCameraPawn.generated.h"
 
+// Forward declare the types we need
+class UDragDropOperation;
+struct FGeometry;
+
 UCLASS()
 class AIMPROVE_API ATopdownCameraPawn : public APawn
 {
@@ -15,19 +19,25 @@ class AIMPROVE_API ATopdownCameraPawn : public APawn
 public:
 	ATopdownCameraPawn();
 
+	// Change to simpler function signature that doesn't expose Slate types in header
+	UFUNCTION()
+	bool HandleBlockPlacement(const FVector& WorldPosition, const FVector& WorldDirection);
+
 protected:
-	// Camera Component reference
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* TopdownCameraComponent;
 
-	// The widget instance
 	UPROPERTY()
 	UInventoryWidget* InventoryWidgetInstance;
+
+	// Add the placement trace distance property
+	UPROPERTY(EditAnywhere, Category = "Building")
+	float PlacementTraceDistance = 10000.0f;
+
 	void CreateInventoryWidget();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
 public:
-	// Getter for the camera component
 	FORCEINLINE UCameraComponent* GetTopdownCamera() const { return TopdownCameraComponent; }
 };
