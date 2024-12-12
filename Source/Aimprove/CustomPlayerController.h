@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "TopdownCameraPawn.h"
+#include "InventoryWidget.h"
 #include "CustomPlayerController.generated.h"
 
 UCLASS()

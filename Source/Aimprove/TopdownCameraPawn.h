@@ -23,7 +23,8 @@ public:
 	// Change to simpler function signature that doesn't expose Slate types in header
 	UFUNCTION()
 	bool HandleBlockPlacement(const FVector& WorldPosition, const FVector& WorldDirection);
-
+	UPROPERTY()
+	UInventoryWidget* InventoryWidgetInstance;
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* TopdownCameraComponent;
@@ -32,8 +33,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Building")
 	float GridSize = 100.0f;
-	UPROPERTY()
-	UInventoryWidget* InventoryWidgetInstance;
+	
 
 	// Add the placement trace distance property
 	UPROPERTY(EditAnywhere, Category = "Building")
