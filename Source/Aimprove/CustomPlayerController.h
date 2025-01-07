@@ -1,31 +1,47 @@
-// CustomPlayerController.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "Kismet/GameplayStatics.h"
-#include "TopdownCameraPawn.h"
 #include "InventoryWidget.h"
 #include "CustomPlayerController.generated.h"
 
+
+/**
+ * Custom player controller to handle HUD and camera functionality.
+ */
 UCLASS()
 class AIMPROVE_API ACustomPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
-protected:
-	// Current Camera Mode
-	bool bIsInTopdownMode;
-
-	// Switching Function
-	void SwitchCameraMode();
-
-	// Called when the game starts
-	virtual void BeginPlay() override;
-
 public:
 	ACustomPlayerController();
+	UPROPERTY()
+	class UMainHUD* MainHUD;
 
-	// Called to bind functionality to input
+	
+protected:
+	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UInventoryWidget> InventoryWidgetClass; // Class reference for the Inventory Widget
+
+	UPROPERTY()
+	UInventoryWidget* InventoryWidget; // Instance of the Inventory Widget
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UMainHUD> MainHUDClass;
+
+private:
+	void SwitchCameraMode();
+
+	bool bIsInTopdownMode;
+
+	/** Reference to the top-down camera */
+	UPROPERTY()
+	class ATopdownCameraPawn* TopdownPawn;
+
+	/** Reference to the main HUD */
+	
 };

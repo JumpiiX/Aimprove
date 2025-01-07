@@ -34,7 +34,8 @@ void ATopdownCameraPawn::CreateInventoryWidget()
             InventoryWidgetInstance = CreateWidget<UInventoryWidget>(PC, WidgetClass);
             if (InventoryWidgetInstance)
             {
-                InventoryWidgetInstance->AddToViewport();
+                InventoryWidgetInstance->AddToViewport(5); // Higher ZOrder ensures it appears above MainHUD
+                UE_LOG(LogTemp, Warning, TEXT("InventoryWidget added to viewport."));
             }
         }
     }

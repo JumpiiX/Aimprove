@@ -4,7 +4,10 @@
 #include "GameFramework/Character.h"
 #include "SandboxCharacter.generated.h"
 
-UCLASS(Blueprintable, BlueprintType)
+/**
+ * Sandbox character that interacts with the environment.
+ */
+UCLASS()
 class AIMPROVE_API ASandboxCharacter : public ACharacter
 {
 	GENERATED_BODY()
@@ -12,25 +15,23 @@ class AIMPROVE_API ASandboxCharacter : public ACharacter
 public:
 	ASandboxCharacter();
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	// Shooting function
-	UFUNCTION(BlueprintCallable, Category = "Shooting")
-	void Shoot();
-
-	// Decal material reference
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shooting")
-	UMaterialInterface* ImpactDecalMaterial;
-
-	// Decal size
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shooting")
-	float DecalSize = 10.0f;
-
-	// Decal lifetime
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shooting")
-	float DecalLifespan = 5.0f;
-
 protected:
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+virtual void Tick(float DeltaTime) override;
 	virtual void BeginPlay() override;
+
+private:
+	void Shoot();
+	void EarnCoins(int32 Amount);
+
+	/** Number of coins earned by the player */
+	int32 Coins;
+
+	/** Material used for impact decals */
+	UPROPERTY()
+	class UMaterialInterface* ImpactDecalMaterial;
+
+	/** Size and lifespan for impact decals */
+	float DecalSize = 10.0f;
+	float DecalLifespan = 5.0f;
 };
