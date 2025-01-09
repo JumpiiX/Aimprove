@@ -2,6 +2,7 @@
 #include "CustomPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "UMainHUD.h"
+#include "Components/DecalComponent.h"
 
 ASandboxCharacter::ASandboxCharacter()
 {
@@ -38,49 +39,51 @@ void ASandboxCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
     PlayerInputComponent->BindAction("Shoot", IE_Pressed, this, &ASandboxCharacter::Shoot);
 }
 
-    void ASandboxCharacter::Shoot()
+void ASandboxCharacter::Shoot()
+{
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC) return;
+
+    FVector CameraLocation;
+    FRotator CameraRotation;
+    PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
+
+    FVector ShotDirection = CameraRotation.Vector();
+    FVector TraceEnd = CameraLocation + (ShotDirection * 10000.0f);
+
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+    QueryParams.bTraceComplex = true;
+
+    bool bHit = GetWorld()->LineTraceSingleByChannel(
+        HitResult,
+        CameraLocation,
+        TraceEnd,
+        ECC_PhysicsBody,
+        QueryParams
+    );
+
+    if (bHit)
     {
-        APlayerController* PC = Cast<APlayerController>(GetController());
-        if (!PC) return;
-
-        FVector CameraLocation;
-        FRotator CameraRotation;
-        PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
-
-        FVector ShotDirection = CameraRotation.Vector();
-        FVector TraceEnd = CameraLocation + (ShotDirection * 10000.0f);
-
-        // Add debug logs for trace
-        UE_LOG(LogTemp, Warning, TEXT("Shooting from: %s towards: %s"), *CameraLocation.ToString(), *TraceEnd.ToString());
-
-        FHitResult HitResult;
-        FCollisionQueryParams QueryParams;
-        QueryParams.AddIgnoredActor(this);
-        QueryParams.bTraceComplex = true; // Add this for more precise collision
-
-        // Try ECC_PhysicsBody instead
-        bool bHit = GetWorld()->LineTraceSingleByChannel(
-            HitResult,
-            CameraLocation,
-            TraceEnd,
-            ECC_PhysicsBody,
-            QueryParams
-        );
-
-        if (bHit)
+        // Check for enemy hit first
+        UClass* EnemyBlueprintClass = LoadObject<UClass>(nullptr, TEXT("/Game/Blueprints/CBP_Enemy.CBP_Enemy_C"));
+        if (EnemyBlueprintClass && HitResult.GetActor() && HitResult.GetActor()->IsA(EnemyBlueprintClass))
         {
-            if (HitResult.GetActor())
+            UE_LOG(LogTemp, Warning, TEXT("Enemy hit detected! Awarding coins."));
+            EarnCoins(100);
+            
+            if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(GetController()))
             {
-                UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s at location: %s"), 
-                    *HitResult.GetActor()->GetName(), 
-                    *HitResult.Location.ToString());
-                UE_LOG(LogTemp, Warning, TEXT("Hit component: %s"), 
-                    *HitResult.Component->GetName());
+                CustomPC->RestartRound();
             }
+        }
+
+        // Spawn decal regardless of what was hit
         if (ImpactDecalMaterial)
         {
             FRotator DecalRotation = HitResult.Normal.Rotation();
-            UGameplayStatics::SpawnDecalAtLocation(
+            UDecalComponent* Decal = UGameplayStatics::SpawnDecalAtLocation(
                 GetWorld(),
                 ImpactDecalMaterial,
                 FVector(DecalSize, DecalSize, DecalSize),
@@ -88,20 +91,21 @@ void ASandboxCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
                 DecalRotation,
                 DecalLifespan
             );
-        }
 
-        UClass* EnemyBlueprintClass = LoadObject<UClass>(nullptr, TEXT("/Game/Blueprints/CBP_Enemy.CBP_Enemy_C"));
-        if (EnemyBlueprintClass && HitResult.GetActor() && HitResult.GetActor()->IsA(EnemyBlueprintClass))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Enemy hit detected! Awarding coins."));
-            EarnCoins(100);
+            if (Decal)
+            {
+                // Force decal to be visible at any distance
+                Decal->FadeScreenSize = 0.0f;
+                Decal->SetFadeScreenSize(0.0f);
+            }
+        
         }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Shoot: No hit detected."));
     }
 }
+
+
+
+
 void ASandboxCharacter::EarnCoins(int32 Amount)
 {
     Coins += Amount; // Update the coin count

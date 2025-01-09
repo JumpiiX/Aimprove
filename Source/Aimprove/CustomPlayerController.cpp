@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "InventoryWidget.h"
+#include "GameFramework/PlayerStart.h"
 
 ACustomPlayerController::ACustomPlayerController()
 {
@@ -104,5 +105,34 @@ void ACustomPlayerController::SwitchCameraMode()
                 SetInputMode(GameAndUIMode);
             }
         }
+    }
+}
+
+void ACustomPlayerController::RestartRound()
+{
+    AActor* StartPoint = UGameplayStatics::GetActorOfClass(GetWorld(), APlayerStart::StaticClass());
+    if (StartPoint)
+    {
+        // Reset character position first
+        APawn* CurrentPawn = GetPawn();
+        if (CurrentPawn)
+        {
+            CurrentPawn->SetActorLocation(StartPoint->GetActorLocation());
+            CurrentPawn->SetActorRotation(StartPoint->GetActorRotation());
+        }
+    }
+    
+    // Then switch to topdown view
+    ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(UGameplayStatics::GetActorOfClass(GetWorld(), ATopdownCameraPawn::StaticClass()));
+    if (TopdownPawn)
+    {
+        Possess(TopdownPawn);
+        bIsInTopdownMode = true;
+        bShowMouseCursor = true;
+        CurrentMouseCursor = EMouseCursor::Crosshairs;
+        
+        FInputModeGameAndUI GameAndUIMode;
+        GameAndUIMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        SetInputMode(GameAndUIMode);
     }
 }

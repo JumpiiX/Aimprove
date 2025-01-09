@@ -19,8 +19,10 @@ public:
 	UPROPERTY()
 	class UMainHUD* MainHUD;
 
-	
+	// Add after other function declarations
+	void RestartRound();
 protected:
+	
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 
