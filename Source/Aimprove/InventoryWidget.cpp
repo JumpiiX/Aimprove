@@ -41,13 +41,22 @@ void UInventoryWidget::NativeConstruct()
 
 FReply UInventoryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && DraggableSquare)
     {
-        return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+        // Get DraggableSquare's geometry
+        FGeometry SquareGeometry = DraggableSquare->GetCachedGeometry();
+        FVector2D LocalMousePosition = SquareGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+        
+        // Check if click is within bounds
+        FVector2D SquareSize = SquareGeometry.GetLocalSize();
+        if (LocalMousePosition.X >= 0 && LocalMousePosition.X <= SquareSize.X &&
+            LocalMousePosition.Y >= 0 && LocalMousePosition.Y <= SquareSize.Y)
+        {
+            return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+        }
     }
     return FReply::Unhandled();
 }
-
 void UInventoryWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
     if (!BlockToSpawn) return;
