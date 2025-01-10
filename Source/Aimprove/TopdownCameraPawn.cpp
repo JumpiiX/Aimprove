@@ -48,109 +48,79 @@ void ATopdownCameraPawn::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 }
 
-void ATopdownCameraPawn::UpdatePreviewLocation(const FVector& Location)
+
+void ATopdownCameraPawn::UpdatePreviewLocation(const FVector& Location, UClass* InBlockClass)
 {
-   // Erstelle Preview-Block falls noch nicht vorhanden
-   if (!PreviewBlock)
+   if (!PreviewBlock && InBlockClass)
    {
-       UClass* BlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
-       if (BlockClass)
+       FActorSpawnParameters SpawnParams;
+       SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+       PreviewBlock = GetWorld()->SpawnActor<AActor>(InBlockClass, Location, FRotator::ZeroRotator, SpawnParams);
+       
+       if (PreviewBlock)
        {
-           FActorSpawnParameters SpawnParams;
-           SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-           PreviewBlock = GetWorld()->SpawnActor<AActor>(BlockClass, Location, FRotator::ZeroRotator, SpawnParams);
+           TArray<UStaticMeshComponent*> MeshComponents;
+           PreviewBlock->GetComponents<UStaticMeshComponent>(MeshComponents);
            
-           if (PreviewBlock)
+           for (UStaticMeshComponent* MeshComp : MeshComponents)
            {
-               TArray<UStaticMeshComponent*> MeshComponents;
-               PreviewBlock->GetComponents<UStaticMeshComponent>(MeshComponents);
+               MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
                
-               for (UStaticMeshComponent* MeshComp : MeshComponents)
+               for (int32 i = 0; i < MeshComp->GetNumMaterials(); i++)
                {
-                   MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                   
-                   // Setze alle Materialien auf halbtransparent
-                   for (int32 i = 0; i < MeshComp->GetNumMaterials(); i++)
+                   UMaterialInterface* Material = MeshComp->GetMaterial(i);
+                   if (Material)
                    {
-                       UMaterialInterface* Material = MeshComp->GetMaterial(i);
-                       if (Material)
-                       {
-                           UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(Material, this);
-                           DynMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.5f);
-                           MeshComp->SetMaterial(i, DynMaterial);
-                       }
+                       UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(Material, this);
+                       DynMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.5f);
+                       MeshComp->SetMaterial(i, DynMaterial);
                    }
                }
            }
        }
    }
-   
-    if (PreviewBlock)
-    {
-        FVector SnappedLocation = FVector(
-            FMath::RoundToFloat(Location.X / GridSize) * GridSize,
-            FMath::RoundToFloat(Location.Y / GridSize) * GridSize - GridSize, // Einen Grid auf Y-Achse
-            Location.Z
-        );
-        PreviewBlock->SetActorLocation(SnappedLocation);
-    }
+  
+   if (PreviewBlock)
+   {
+       FVector SnappedLocation = FVector(
+           FMath::RoundToFloat(Location.X / GridSize) * GridSize,
+           FMath::RoundToFloat(Location.Y / GridSize) * GridSize - GridSize,
+           Location.Z
+       );
+       PreviewBlock->SetActorLocation(SnappedLocation);
+   }
 }
 
-bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, const FVector& WorldDirection)
+bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, const FVector& WorldDirection, UClass* InBlockClass)
 {
-   UE_LOG(LogTemp, Warning, TEXT("=== Attempting Block Placement ==="));
-   UE_LOG(LogTemp, Warning, TEXT("WorldPosition: %s"), *WorldPosition.ToString());
-   UE_LOG(LogTemp, Warning, TEXT("WorldDirection: %s"), *WorldDirection.ToString());
-   
    FVector TraceEnd = WorldPosition + (WorldDirection * PlacementTraceDistance);
    
    FHitResult HitResult;
    FCollisionQueryParams QueryParams;
    QueryParams.AddIgnoredActor(this);
-   QueryParams.bTraceComplex = true;  // Für genauere Kollisionserkennung
+   QueryParams.bTraceComplex = true;
 
    bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, TraceEnd, ECC_Visibility, QueryParams);
    
-   if (bHit)
+   if (bHit && InBlockClass)
    {
-       UE_LOG(LogTemp, Warning, TEXT("Line trace hit at: %s"), *HitResult.Location.ToString());
-       
-       UClass* BlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
-       if (!BlockClass)
-       {
-           UE_LOG(LogTemp, Error, TEXT("Failed to load block class!"));
-           return false;
-       }
-
-  
        FVector SpawnLocation = FVector(
-    FMath::RoundToFloat(HitResult.ImpactPoint.X / GridSize) * GridSize,
-    FMath::RoundToFloat(HitResult.ImpactPoint.Y / GridSize) * GridSize - GridSize,
-    HitResult.ImpactPoint.Z
-);
-
-       UE_LOG(LogTemp, Warning, TEXT("Attempting to spawn at: %s"), *SpawnLocation.ToString());
+           FMath::RoundToFloat(HitResult.ImpactPoint.X / GridSize) * GridSize,
+           FMath::RoundToFloat(HitResult.ImpactPoint.Y / GridSize) * GridSize - GridSize,
+           HitResult.ImpactPoint.Z
+       );
        
-       FRotator SpawnRotation = FRotator::ZeroRotator;
+       FRotator SpawnRotation = FRotator(0.0f, PreviewRotation, 0.0f);
        FActorSpawnParameters SpawnParams;
        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-       AActor* SpawnedBlock = GetWorld()->SpawnActor<AActor>(BlockClass, SpawnLocation, SpawnRotation, SpawnParams);
+       AActor* SpawnedBlock = GetWorld()->SpawnActor<AActor>(InBlockClass, SpawnLocation, SpawnRotation, SpawnParams);
        
        if (SpawnedBlock)
        {
-           UE_LOG(LogTemp, Warning, TEXT("Successfully spawned block: %s"), *SpawnedBlock->GetName());
-           DestroyPreviewBlock();  // Preview zerstören nach erfolgreicher Platzierung
+           DestroyPreviewBlock();
            return true;
        }
-       else
-       {
-           UE_LOG(LogTemp, Error, TEXT("Failed to spawn block at location"));
-       }
-   }
-   else
-   {
-       UE_LOG(LogTemp, Warning, TEXT("Line trace did not hit anything - No surface to place block on"));
    }
 
    return false;

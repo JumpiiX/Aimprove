@@ -9,140 +9,153 @@
 // InventoryWidget.cpp - Aktualisiere NativeConstruct
 void UInventoryWidget::NativeConstruct()
 {
-    Super::NativeConstruct();
+   Super::NativeConstruct();
 
-    // Load the LevelBlock class
-    BlockToSpawn = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
-    
-    if (BlockToSpawn)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("LevelBlock class loaded successfully"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to load LevelBlock class"));
-    }
+   LevelBlockClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/LevelBlock_Traversable.LevelBlock_Traversable_C"));
+    WallClass = LoadClass<AActor>(nullptr, TEXT("/Game/LevelPrototyping/wall_Traversable.wall_Traversable_C"));   
+   if (LevelBlockClass && WallClass)
+   {
+       UE_LOG(LogTemp, Warning, TEXT("Building classes loaded successfully"));
+   }
 
-    if (DraggableSquare)
-    {
-        DraggableSquare->SetVisibility(ESlateVisibility::Visible);
-    }
+    if (block)
+       block->SetVisibility(ESlateVisibility::Visible);
+   if (wall)
+       wall->SetVisibility(ESlateVisibility::Visible);
 
-    // Add these lines
-    SetVisibility(ESlateVisibility::Visible);
-    SetIsFocusable(true);
-    
-    if (APlayerController* PC = GetOwningPlayer())
-    {
-        PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
-        PC->bShowMouseCursor = true;
-    }
+   SetVisibility(ESlateVisibility::Visible);
+   SetIsFocusable(true);
+   
+   if (APlayerController* PC = GetOwningPlayer())
+   {
+       PC->InputComponent->BindAction("Rotate", IE_Pressed, this, &UInventoryWidget::OnRotatePressed);
+       PC->CurrentMouseCursor = EMouseCursor::Crosshairs;
+       PC->bShowMouseCursor = true;
+   }
 }
 
 FReply UInventoryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && DraggableSquare)
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
-        // Get DraggableSquare's geometry
-        FGeometry SquareGeometry = DraggableSquare->GetCachedGeometry();
-        FVector2D LocalMousePosition = SquareGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-        
-        // Check if click is within bounds
-        FVector2D SquareSize = SquareGeometry.GetLocalSize();
-        if (LocalMousePosition.X >= 0 && LocalMousePosition.X <= SquareSize.X &&
-            LocalMousePosition.Y >= 0 && LocalMousePosition.Y <= SquareSize.Y)
+        // Check block drag
+        if (block)
         {
-            return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+            FGeometry BlockGeometry = block->GetCachedGeometry();
+            FVector2D LocalPos = BlockGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+            FVector2D Size = BlockGeometry.GetLocalSize();
+            
+            if (LocalPos.X >= 0 && LocalPos.X <= Size.X && LocalPos.Y >= 0 && LocalPos.Y <= Size.Y)
+            {
+                BlockToSpawn = LevelBlockClass;
+                return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+            }
+        }
+        
+        // Check wall drag
+        if (wall)  
+        {
+            FGeometry WallGeometry = wall->GetCachedGeometry();
+            FVector2D LocalPos = WallGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+            FVector2D Size = WallGeometry.GetLocalSize();
+    
+            UE_LOG(LogTemp, Warning, TEXT("Wall bounds check - LocalPos: %s, Size: %s"), 
+                *LocalPos.ToString(), *Size.ToString());
+            
+            if (LocalPos.X >= 0 && LocalPos.X <= Size.X && LocalPos.Y >= 0 && LocalPos.Y <= Size.Y)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Wall drag detected!"));
+                BlockToSpawn = WallClass;
+                return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
+            }
         }
     }
     return FReply::Unhandled();
 }
 void UInventoryWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
-    if (!BlockToSpawn) return;
+   if (!BlockToSpawn) return;
 
-    UInventoryDragDropOperation* DragDropOp = Cast<UInventoryDragDropOperation>(UWidgetBlueprintLibrary::CreateDragDropOperation(UInventoryDragDropOperation::StaticClass()));
-    
-    if (DragDropOp)
-    {
-        DragDropOp->BlockClass = BlockToSpawn;
-        DragDropOp->Pivot = EDragPivot::MouseDown;
-        OutOperation = DragDropOp;
-        
-        // Start Preview
-        if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
-        {
-            FVector2D MousePosition = InMouseEvent.GetScreenSpacePosition();
-            FVector WorldPosition, WorldDirection;
-            
-            if (APlayerController* PC = GetOwningPlayer())
-            {
-                if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
-                {
-                    FHitResult HitResult;
-                    if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
-                    {
-                        TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint);
-                    }
-                }
-            }
-        }
-    }
-}
-bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
-{
-    UE_LOG(LogTemp, Warning, TEXT("NativeOnDrop called"));
-
-    if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Found TopdownPawn"));
-        
-        APlayerController* PC = GetOwningPlayer();
-        if (!PC)
-        {
-            UE_LOG(LogTemp, Error, TEXT("No PlayerController found"));
-            return false;
-        }
-
-        FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
-        FVector WorldPosition, WorldDirection;
-        
-        if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Deproject successful. WorldPos: %s"), *WorldPosition.ToString());
-            return TopdownPawn->HandleBlockPlacement(WorldPosition, WorldDirection);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Deproject failed"));
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Could not find TopdownPawn"));
-    }
-    return false;
+   UInventoryDragDropOperation* DragDropOp = Cast<UInventoryDragDropOperation>(UWidgetBlueprintLibrary::CreateDragDropOperation(UInventoryDragDropOperation::StaticClass()));
+   
+   if (DragDropOp)
+   {
+       DragDropOp->BlockClass = BlockToSpawn;
+       DragDropOp->Pivot = EDragPivot::MouseDown;
+       OutOperation = DragDropOp;
+       
+       if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+       {
+           FVector2D MousePosition = InMouseEvent.GetScreenSpacePosition();
+           FVector WorldPosition, WorldDirection;
+           
+           if (APlayerController* PC = GetOwningPlayer())
+           {
+               if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+               {
+                   FHitResult HitResult;
+                   if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
+                   {
+                       TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint, BlockToSpawn);
+                   }
+               }
+           }
+       }
+   }
 }
 
 bool UInventoryWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
+   if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+   {
+       FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
+       FVector WorldPosition, WorldDirection;
+       
+       if (APlayerController* PC = GetOwningPlayer())
+       {
+           if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+           {
+               FHitResult HitResult;
+               if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
+               {
+                   TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint, BlockToSpawn);
+                   return true;
+               }
+           }
+       }
+   }
+   return false;
+}
+
+bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+   if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
+   {
+       APlayerController* PC = GetOwningPlayer();
+       if (!PC) return false;
+
+       FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
+       FVector WorldPosition, WorldDirection;
+       
+       if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
+       {
+           return TopdownPawn->HandleBlockPlacement(WorldPosition, WorldDirection, BlockToSpawn);
+       }
+   }
+   return false;
+}
+
+void UInventoryWidget::OnRotatePressed()
+{
     if (ATopdownCameraPawn* TopdownPawn = Cast<ATopdownCameraPawn>(GetOwningPlayerPawn()))
     {
-        FVector2D MousePosition = InDragDropEvent.GetScreenSpacePosition();
-        FVector WorldPosition, WorldDirection;
-        
-        if (APlayerController* PC = GetOwningPlayer())
+        if (TopdownPawn->PreviewBlock)
         {
-            if (PC->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldPosition, WorldDirection))
-            {
-                FHitResult HitResult;
-                if (GetWorld()->LineTraceSingleByChannel(HitResult, WorldPosition, WorldPosition + (WorldDirection * 10000.0f), ECC_Visibility))
-                {
-                    TopdownPawn->UpdatePreviewLocation(HitResult.ImpactPoint);
-                    return true;
-                }
-            }
+            CurrentRotation += 90.0f;
+            if (CurrentRotation >= 360.0f)
+                CurrentRotation = 0.0f;
+            TopdownPawn->PreviewRotation = CurrentRotation;
+            TopdownPawn->PreviewBlock->SetActorRotation(FRotator(0.0f, CurrentRotation, 0.0f));
         }
     }
-    return false;
 }
