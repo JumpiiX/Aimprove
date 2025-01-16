@@ -2,7 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "UMainHUD.h"  // Add this include
+
+#include "Components/Border.h"  // Add this for UBorder
 #include "InventoryWidget.generated.h"
+
+
 
 class UDragDropOperation;
 struct FGeometry;
@@ -16,6 +21,26 @@ public:
 	 
 	UFUNCTION()
 	void OnRotatePressed();
+	// Costs for items
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+	int32 BlockCost = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+	int32 WallCost = 50;
+	bool CanAffordItem(TSubclassOf<AActor> ItemClass) const;
+	void PayForItem(TSubclassOf<AActor> ItemClass);
+
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	UWidgetAnimation* RedFlashAnimation;
+
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* ErrorMessageText;
+
+	UPROPERTY(meta = (BindWidget))
+	UBorder* ErrorMessageBorder;
+
+	// Neue Funktion fürs Feedback
+	void ShowNotEnoughCoinsMessage();
 protected:
 	virtual void NativeConstruct() override;
 	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
