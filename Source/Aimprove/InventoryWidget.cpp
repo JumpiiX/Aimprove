@@ -222,27 +222,88 @@ void UInventoryWidget::PayForItem(TSubclassOf<AActor> ItemClass)
     PC->MainHUD->UpdateCoinCount(CurrentCoins - Cost);
 }
 
+
 void UInventoryWidget::ShowNotEnoughCoinsMessage()
 {
+    // Text-Nachricht anzeigen
     if (ErrorMessageText && ErrorMessageBorder)
     {
         ErrorMessageText->SetText(FText::FromString("Not enough coins!"));
         ErrorMessageBorder->SetVisibility(ESlateVisibility::Visible);
 
-        // Play red flash animation if available
-        if (RedFlashAnimation)
-        {
-            PlayAnimation(RedFlashAnimation);
-        }
-
-        // Hide message after 2 seconds
-        FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+        // Nach 2 Sekunden ausblenden
+        FTimerHandle MessageTimer;
+        GetWorld()->GetTimerManager().SetTimer(MessageTimer, [this]()
         {
             if (ErrorMessageBorder)
             {
                 ErrorMessageBorder->SetVisibility(ESlateVisibility::Hidden);
             }
         }, 2.0f, false);
+    }
+
+    // Item rot blinken lassen
+    UImage* ItemToFlash = nullptr;
+    if (BlockToSpawn == LevelBlockClass)
+    {
+        ItemToFlash = block;
+    }
+    else if (BlockToSpawn == WallClass)
+    {
+        ItemToFlash = wall;
+    }
+
+    if (ItemToFlash)
+    {
+        // Originale Farbe speichern
+        FLinearColor OriginalTint = ItemToFlash->ColorAndOpacity;
+        
+        // Helles, kräftiges Rot
+        ItemToFlash->SetColorAndOpacity(FLinearColor(1.0f, 0.2f, 0.2f, 1.0f));
+
+        // Zurück zur Original-Farbe
+        FTimerHandle ColorTimer;
+        GetWorld()->GetTimerManager().SetTimer(ColorTimer, [this, ItemToFlash, OriginalTint]()
+        {
+            if (ItemToFlash)
+            {
+                ItemToFlash->SetColorAndOpacity(OriginalTint);
+            }
+        }, 0.3f, false);
+    }
+}
+void UInventoryWidget::FlashRed(UWidget* Widget)
+{
+    if (!Widget) return;
+
+    UBorder* Border = Cast<UBorder>(Widget);
+    if (Border)
+    {
+        // Für Border
+        OriginalColor = Border->GetBrushColor();
+        Border->SetBrushColor(FLinearColor(1.0f, 0.0f, 0.0f, 1.0f));  // Rot
+
+        GetWorld()->GetTimerManager().SetTimer(ColorResetTimer, [this, Border]()
+        {
+            if (Border)
+            {
+                Border->SetBrushColor(OriginalColor);
+            }
+        }, 0.3f, false);
+    }
+    else if (UTextBlock* Text = Cast<UTextBlock>(Widget))
+    {
+        // Für TextBlock
+        FSlateColor CurrentColor = Text->GetColorAndOpacity();
+        OriginalColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);  // Default weiß
+        Text->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.0f, 0.0f, 1.0f)));  // Rot
+
+        GetWorld()->GetTimerManager().SetTimer(ColorResetTimer, [this, Text]()
+        {
+            if (Text)
+            {
+                Text->SetColorAndOpacity(FSlateColor(OriginalColor));
+            }
+        }, 0.3f, false);
     }
 }
