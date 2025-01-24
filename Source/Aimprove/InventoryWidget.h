@@ -17,6 +17,7 @@ class AIMPROVE_API UInventoryWidget : public UUserWidget
 {
     GENERATED_BODY()
 public:
+void PrintPlayerInfo() const;
     UFUNCTION()
     void OnRotatePressed();
 

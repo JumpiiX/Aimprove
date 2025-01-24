@@ -15,6 +15,9 @@ class AIMPROVE_API ASandboxCharacter : public ACharacter
 public:
 	ASandboxCharacter();
 
+	UPROPERTY()
+	int32 Coins;
+	
 protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 virtual void Tick(float DeltaTime) override;
@@ -34,7 +37,7 @@ virtual void Tick(float DeltaTime) override;
 	void EarnCoins(int32 Amount);
 
 	/** Number of coins earned by the player */
-	int32 Coins;
+	
 
 
 };

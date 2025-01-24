@@ -6,6 +6,7 @@
 #include "Components/Image.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "InventoryDragDropOperation.h"
+#include "SandboxCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "UMainHUD.h"
 #include "Components/TextBlock.h"
@@ -184,32 +185,81 @@ void UInventoryWidget::OnRotatePressed()
     }
 }
 
+void UInventoryWidget::PrintPlayerInfo() const
+{
+    UWorld* World = GetWorld();
+    if (!World) 
+    {
+        UE_LOG(LogTemp, Error, TEXT("No World found"));
+        return;
+    }
+
+    APlayerController* PC = World->GetFirstPlayerController();
+    if (!PC)
+    {
+        UE_LOG(LogTemp, Error, TEXT("No PlayerController found"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("PlayerController found: %s"), *PC->GetName());
+
+    APawn* Pawn = PC->GetPawn();
+    if (!Pawn)
+    {
+        UE_LOG(LogTemp, Error, TEXT("No Pawn found for PlayerController"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Pawn found: %s"), *Pawn->GetName());
+    UE_LOG(LogTemp, Warning, TEXT("Pawn class: %s"), *Pawn->GetClass()->GetName());
+}
+
 bool UInventoryWidget::CanAffordItem(TSubclassOf<AActor> ItemClass) const
 {
     ACustomPlayerController* PC = Cast<ACustomPlayerController>(GetOwningPlayer());
-    if (!PC || !PC->MainHUD) return false;
+    if (!PC || !PC->GetSandboxCharacter())
+    {
+        UE_LOG(LogTemp, Error, TEXT("CanAffordItem: SandboxCharacter is not set in PlayerController."));
+        return false;
+    }
 
-    int32 CurrentCoins = FCString::Atoi(*PC->MainHUD->CoinText->GetText().ToString());
-    
+    ASandboxCharacter* SandboxChar = PC->GetSandboxCharacter();
+
+    UE_LOG(LogTemp, Warning, TEXT("CanAffordItem: Found SandboxCharacter with %d coins"), SandboxChar->Coins);
+
     if (ItemClass == LevelBlockClass)
     {
-        return CurrentCoins >= BlockCost;
+        return SandboxChar->Coins >= BlockCost;
     }
     else if (ItemClass == WallClass)
     {
-        return CurrentCoins >= WallCost;
+        return SandboxChar->Coins >= WallCost;
     }
+
     return false;
 }
+
+
+
 
 void UInventoryWidget::PayForItem(TSubclassOf<AActor> ItemClass)
 {
     ACustomPlayerController* PC = Cast<ACustomPlayerController>(GetOwningPlayer());
-    if (!PC || !PC->MainHUD) return;
+    if (!PC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PayForItem: PlayerController is invalid."));
+        return;
+    }
 
-    int32 CurrentCoins = FCString::Atoi(*PC->MainHUD->CoinText->GetText().ToString());
+    ASandboxCharacter* SandboxChar = PC->GetSandboxCharacter();
+    if (!SandboxChar)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PayForItem: SandboxCharacter is invalid."));
+        return;
+    }
+
+    // Determine the cost of the item
     int32 Cost = 0;
-
     if (ItemClass == LevelBlockClass)
     {
         Cost = BlockCost;
@@ -219,8 +269,22 @@ void UInventoryWidget::PayForItem(TSubclassOf<AActor> ItemClass)
         Cost = WallCost;
     }
 
-    PC->MainHUD->UpdateCoinCount(CurrentCoins - Cost);
+    // Deduct coins
+    UE_LOG(LogTemp, Warning, TEXT("PayForItem: Before deduction. Coins: %d, Cost: %d"), SandboxChar->Coins, Cost);
+    SandboxChar->Coins -= Cost;  // Deduct the cost
+    UE_LOG(LogTemp, Warning, TEXT("PayForItem: After deduction. Remaining Coins: %d"), SandboxChar->Coins);
+
+    // Update the MainHUD with the new coin count
+    if (PC->MainHUD)
+    {
+        PC->MainHUD->UpdateCoinCount(SandboxChar->Coins);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PayForItem: MainHUD is invalid."));
+    }
 }
+
 
 
 void UInventoryWidget::ShowNotEnoughCoinsMessage()

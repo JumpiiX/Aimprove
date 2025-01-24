@@ -1,7 +1,4 @@
-// TopdownCameraPawn.cpp
 #include "TopdownCameraPawn.h"
-#include "InventoryWidget.h"
-#include "InventoryDragDropOperation.h"
 #include "Kismet/GameplayStatics.h"
 
 ATopdownCameraPawn::ATopdownCameraPawn()
@@ -18,36 +15,12 @@ ATopdownCameraPawn::ATopdownCameraPawn()
 void ATopdownCameraPawn::BeginPlay()
 {
     Super::BeginPlay();
-    
-    FTimerHandle TimerHandle;
-    GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &ATopdownCameraPawn::CreateInventoryWidget, 0.1f, false);
 }
 
-void ATopdownCameraPawn::CreateInventoryWidget()
-{
-    APlayerController* PC = Cast<APlayerController>(GetController());
-    if (PC)
-    {
-        UClass* WidgetClass = LoadClass<UInventoryWidget>(nullptr, TEXT("/Game/UI/WBP_InventoryWidget.WBP_InventoryWidget_C"));
-        if (WidgetClass)
-        {
-            InventoryWidgetInstance = CreateWidget<UInventoryWidget>(PC, WidgetClass);
-            if (InventoryWidgetInstance)
-            {
-                InventoryWidgetInstance->AddToViewport(5); // Higher ZOrder ensures it appears above MainHUD
-                UE_LOG(LogTemp, Warning, TEXT("InventoryWidget added to viewport."));
-            }
-        }
-    }
-}
-
-// TopdownCameraPawn.cpp - Update HandleBlockPlacement
-// TopdownCameraPawn.cpp - Update HandleBlockPlacement
 void ATopdownCameraPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 }
-
 
 void ATopdownCameraPawn::UpdatePreviewLocation(const FVector& Location, UClass* InBlockClass)
 {
@@ -125,6 +98,7 @@ bool ATopdownCameraPawn::HandleBlockPlacement(const FVector& WorldPosition, cons
 
    return false;
 }
+
 void ATopdownCameraPawn::DestroyPreviewBlock()
 {
     if (PreviewBlock)

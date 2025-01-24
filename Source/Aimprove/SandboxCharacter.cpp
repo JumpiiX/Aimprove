@@ -71,14 +71,26 @@ void ASandboxCharacter::Shoot()
         if (EnemyBlueprintClass && HitResult.GetActor() && HitResult.GetActor()->IsA(EnemyBlueprintClass))
         {
             UE_LOG(LogTemp, Warning, TEXT("Enemy hit detected! Awarding coins."));
-            EarnCoins(100);
+            
+            // Check for headshot - assuming the head bone/component is named "head" or is within the top 20% of the enemy's height
+            bool bIsHeadshot = false;
+            if (HitResult.BoneName == FName("head") || 
+                (HitResult.ImpactPoint.Z - HitResult.GetActor()->GetActorLocation().Z) > 
+                (HitResult.GetActor()->GetActorScale3D().Z * 80.0f))  // Assuming 100 is full height, checking top 20%
+            {
+                EarnCoins(600); // Headshot bonus
+                UE_LOG(LogTemp, Warning, TEXT("Headshot! Bonus coins awarded."));
+            }
+            else
+            {
+                EarnCoins(100); // Normal hit
+            }
             
             if (ACustomPlayerController* CustomPC = Cast<ACustomPlayerController>(GetController()))
             {
                 CustomPC->RestartRound();
             }
         }
-
         // Spawn decal regardless of what was hit
         if (ImpactDecalMaterial)
         {
